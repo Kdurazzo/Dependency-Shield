@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+reports/
+depshield_report.*
+depshield_npm_report.*
+depshield_npm_file_report.*
+depshield_npm_tampered_report.*
+depshield_openssl_report.*
