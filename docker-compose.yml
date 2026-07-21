@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  depshield-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: depshield:latest
+    # Override default CLI entrypoint to start the Web Server
+    entrypoint: ["python3", "/app/web_server.py", "8080"]
+    ports:
+      - "8080:8080"
+    environment:
+      - NVD_API_KEY
+    restart: unless-stopped

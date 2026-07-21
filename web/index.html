@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DepShield Interactive dependency Auditor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Space+Grotesk:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <!-- Load D3.js from CDN for rich interactive physics force-directed graph visualizer -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+    <!-- Top Glassmorphic Navigation -->
+    <header class="glass-nav">
+        <div class="logo-group">
+            <div class="logo-icon">DS</div>
+            <div>
+                <h1>DepShield Visualizer</h1>
+                <div class="logo-subtitle">Interactive Dependency Supply Chain Security Auditor</div>
+            </div>
+        </div>
+        <div class="global-actions">
+            <a href="https://github.com/google/osv" target="_blank" class="nav-link">OSV Database</a>
+            <a href="https://nvd.nist.gov" target="_blank" class="nav-link">NIST NVD</a>
+            <button id="btn-settings" class="canvas-btn" style="margin-left: 0.5rem;" title="Settings">⚙️</button>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <div class="app-container">
+        
+        <!-- Sidebar Controls & Package Loader -->
+        <aside class="control-panel glass-panel">
+            <h2>Auditor Operations</h2>
+            
+            <!-- Upload Tab -->
+            <section class="operations-section">
+                <h3>Upload Manifest</h3>
+                <div id="drop-zone" class="drop-zone">
+                    <div class="drop-zone-text">
+                        <span class="icon">📁</span>
+                        <strong>Drag & Drop file here</strong>
+                        <span class="subtext">requirements.txt, package.json, package-lock.json</span>
+                    </div>
+                    <input type="file" id="manifest-file" class="file-input" accept=".txt,.json">
+                </div>
+                <div class="or-separator"><span>OR</span></div>
+            </section>
+
+            <!-- Search Tab -->
+            <section class="operations-section">
+                <h3>Query Single Library</h3>
+                <form id="search-form">
+                    <div class="form-group">
+                        <label for="package-name">Package Name</label>
+                        <input type="text" id="package-name" placeholder="e.g., requests, lodash" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="package-ecosystem">Ecosystem</label>
+                            <select id="package-ecosystem">
+                                <option value="PyPI">PyPI (Python)</option>
+                                <option value="npm">npm (Node.js)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="package-version">Version <span class="muted">(Optional)</span></label>
+                            <input type="text" id="package-version" placeholder="e.g. 2.31.0">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Audit & Resolve Graph</button>
+                </form>
+            </section>
+
+            <!-- Risk Summary Dashboard (Hidden until graph loads) -->
+            <section id="metrics-panel" class="operations-section border-top hidden">
+                <h3>Executive Summary</h3>
+                <div class="metrics-grid">
+                    <div class="metric-card bg-low">
+                        <div id="metric-total" class="metric-val">0</div>
+                        <div class="metric-label">Dependencies</div>
+                    </div>
+                    <div class="metric-card bg-danger">
+                        <div id="metric-vulns" class="metric-val">0</div>
+                        <div class="metric-label">Vulnerabilities</div>
+                    </div>
+                    <div class="metric-card bg-warning">
+                        <div id="metric-recent" class="metric-val">0</div>
+                        <div class="metric-label">Recent Releases</div>
+                    </div>
+                    <div class="metric-card bg-critical">
+                        <div id="metric-failures" class="metric-val">0</div>
+                        <div class="metric-label">Integrity Issues</div>
+                    </div>
+                </div>
+                <div class="status-summary mt-3">
+                    <strong>Global Risk Score:</strong> 
+                    <span id="risk-score-badge" class="risk-badge">LOW</span>
+                </div>
+            </section>
+        </aside>
+
+        <!-- Visualization Canvas & Details Side Panels -->
+        <main class="visualizer-area">
+            <!-- Loading Indicator -->
+            <div id="loading-overlay" class="loading-overlay hidden">
+                <div class="spinner"></div>
+                <p>Auditing package supply chains and resolving graph...</p>
+            </div>
+
+            <!-- Visualization Canvas -->
+            <div class="canvas-wrapper glass-panel">
+                <div class="canvas-header">
+                    <h2>On-Screen Dependency Visualization</h2>
+                    <div class="canvas-controls">
+                        <button id="btn-zoom-in" class="canvas-btn" title="Zoom In">+</button>
+                        <button id="btn-zoom-out" class="canvas-btn" title="Zoom Out">-</button>
+                        <button id="btn-zoom-reset" class="canvas-btn" title="Reset View">☉</button>
+                    </div>
+                </div>
+                <div id="graph-container" class="graph-container">
+                    <!-- Graph SVG is injected here -->
+                    <div id="graph-placeholder" class="graph-placeholder">
+                        <div class="placeholder-content">
+                            <span class="large-icon">🕸️</span>
+                            <h3>No Dependency Graph Loaded</h3>
+                            <p>Upload a package manifest or query a specific open-source library in the sidebar to visualize risks.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="graph-legend">
+                    <div class="legend-item"><span class="legend-dot bg-low"></span> Low Risk</div>
+                    <div class="legend-item"><span class="legend-dot bg-medium"></span> Medium (New release)</div>
+                    <div class="legend-item"><span class="legend-dot bg-high"></span> High (Vulnerable)</div>
+                    <div class="legend-item"><span class="legend-dot bg-critical"></span> Critical (Tampered)</div>
+                    <div class="legend-item"><span class="legend-dot bg-unknown"></span> Unknown/Error</div>
+                </div>
+            </div>
+            
+            <!-- Detail Card Panel (Populated on Node click) -->
+            <div id="details-panel" class="details-panel glass-panel hidden">
+                <div class="details-header">
+                    <h2>Auditing Report Details</h2>
+                    <button id="btn-close-details" class="close-btn">&times;</button>
+                </div>
+                <div id="details-content" class="details-content">
+                    <!-- Dynamic audit details populated here -->
+                </div>
+            </div>
+        </main>
+
+    </div>
+
+    <!-- Settings Modal Overlay -->
+    <div id="settings-modal" class="loading-overlay hidden" style="background: rgba(7, 10, 19, 0.9);">
+        <div class="glass-panel" style="width: 450px; padding: 2rem; display: flex; flex-direction: column; gap: 1.25rem;">
+            <div class="details-header" style="border-bottom: 1px solid var(--border-glass); padding-bottom: 0.5rem; margin-bottom: 0;">
+                <h2 style="font-size: 1.25rem; color: white;">Configuration Settings</h2>
+                <button id="btn-close-settings" class="close-btn" style="font-size: 1.25rem;">&times;</button>
+            </div>
+            
+            <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">
+                Configure your personal API keys below. They are saved securely in your browser's local storage and passed in request headers.
+            </p>
+
+            <div class="form-group">
+                <label for="settings-nvd-key">NIST NVD API Key</label>
+                <input type="password" id="settings-nvd-key" placeholder="Paste your NVD API Key here">
+            </div>
+
+            <div class="form-group">
+                <label for="settings-gemini-key">Gemini AI API Key</label>
+                <input type="password" id="settings-gemini-key" placeholder="Paste your Gemini AI Key here">
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 0.5rem;">
+                <button id="btn-save-settings" class="btn btn-primary" style="padding: 0.5rem 1.25rem;">Save Keys</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load frontend app handler -->
+    <script src="app.js"></script>
+</body>
+</html>

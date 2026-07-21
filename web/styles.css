@@ -1,0 +1,856 @@
+:root {
+    --bg-base: #070a13;
+    --bg-glass: rgba(13, 18, 33, 0.75);
+    --border-glass: rgba(255, 255, 255, 0.07);
+    --border-glass-glow: rgba(99, 102, 241, 0.15);
+    
+    --text-main: #f9fafb;
+    --text-muted: #9ca3af;
+    --text-inactive: #4b5563;
+    
+    --accent-purple: #8b5cf6;
+    --accent-indigo: #6366f1;
+    --accent-cyan: #06b6d4;
+    
+    --risk-low: #10b981;
+    --risk-medium: #f59e0b;
+    --risk-high: #ef4444;
+    --risk-critical: #f43f5e;
+    --risk-unknown: #6b7280;
+    
+    --font-main: 'Outfit', sans-serif;
+    --font-code: 'Space Grotesk', monospace;
+    
+    --transition-fast: 0.15s ease;
+    --transition-medium: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ==============================================================================
+   RESET & CONTAINER LAYOUTS
+   ============================================================================== */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-base);
+    color: var(--text-main);
+    font-family: var(--font-main);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+    background-image: 
+        radial-gradient(circle at 5% 10%, rgba(139, 92, 246, 0.08) 0%, transparent 35%),
+        radial-gradient(circle at 95% 90%, rgba(6, 182, 212, 0.08) 0%, transparent 35%),
+        radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.03) 0%, transparent 60%);
+    background-attachment: fixed;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.2);
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.1);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,0.2);
+}
+
+/* ==============================================================================
+   GLASSMORPHIC SHAPES & PANELS
+   ============================================================================== */
+.glass-panel {
+    background: var(--bg-glass);
+    border: 1px solid var(--border-glass);
+    border-radius: 16px;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    transition: border-color var(--transition-medium), box-shadow var(--transition-medium);
+}
+
+.glass-panel:hover {
+    border-color: var(--border-glass-glow);
+    box-shadow: 0 15px 45px rgba(99, 102, 241, 0.08);
+}
+
+/* Header Navigation Bar */
+.glass-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    background: rgba(8, 12, 24, 0.6);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border-glass);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.logo-group {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.logo-icon {
+    background: linear-gradient(135deg, var(--accent-purple), var(--accent-indigo));
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: white;
+    box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);
+}
+
+h1 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    background: linear-gradient(to right, #ffffff, #e5e7eb);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.logo-subtitle {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.global-actions {
+    display: flex;
+    gap: 1.5rem;
+}
+
+.nav-link {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: color var(--transition-fast);
+}
+
+.nav-link:hover {
+    color: var(--accent-indigo);
+}
+
+/* ==============================================================================
+   WORKSPACE LAYOUT & SIDEBAR
+   ============================================================================== */
+.app-container {
+    display: flex;
+    flex: 1;
+    padding: 1.5rem;
+    gap: 1.5rem;
+    height: calc(100vh - 70px);
+    overflow: hidden;
+}
+
+.control-panel {
+    width: 380px;
+    flex-shrink: 0;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    overflow-y: auto;
+}
+
+h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-glass);
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.operations-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.border-top {
+    border-top: 1px dashed var(--border-glass);
+    padding-top: 1.5rem;
+}
+
+h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: white;
+}
+
+/* ==============================================================================
+   DRAG AND DROP MANIFEST LOADING
+   ============================================================================== */
+.drop-zone {
+    border: 2px dashed rgba(255,255,255,0.15);
+    border-radius: 12px;
+    padding: 2rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    background: rgba(255,255,255,0.01);
+    transition: border-color var(--transition-fast), background-color var(--transition-fast);
+    position: relative;
+    overflow: hidden;
+}
+
+.drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--accent-indigo);
+    background: rgba(99, 102, 241, 0.03);
+}
+
+.drop-zone-text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.drop-zone-text .icon {
+    font-size: 1.75rem;
+}
+
+.drop-zone-text strong {
+    font-size: 0.9rem;
+    color: #e5e7eb;
+}
+
+.drop-zone-text .subtext {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.file-input {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.or-separator {
+    text-align: center;
+    position: relative;
+    margin: 0.25rem 0;
+}
+
+.or-separator::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--border-glass);
+    z-index: 1;
+}
+
+.or-separator span {
+    background: #0d1221;
+    padding: 0 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-inactive);
+    position: relative;
+    z-index: 2;
+}
+
+/* ==============================================================================
+   FORM INPUTS AND BUTTONS
+   ============================================================================== */
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-bottom: 0.75rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+input, select {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-glass);
+    border-radius: 8px;
+    padding: 0.6rem 0.75rem;
+    color: white;
+    font-family: var(--font-main);
+    font-size: 0.85rem;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+input:focus, select:focus {
+    border-color: var(--accent-indigo);
+    outline: none;
+    box-shadow: 0 0 8px rgba(99, 102, 241, 0.2);
+}
+
+.btn {
+    border: none;
+    border-radius: 8px;
+    padding: 0.7rem 1.2rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--accent-purple), var(--accent-indigo));
+    color: white;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.2);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #9b72ff, #7376ff);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(99, 102, 241, 0.3);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+/* ==============================================================================
+   EXECUTIVE METRICS DASHBOARD
+   ============================================================================== */
+.metrics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.metric-card {
+    background: rgba(255,255,255,0.01);
+    border: 1px solid var(--border-glass);
+    border-radius: 10px;
+    padding: 0.75rem;
+    text-align: center;
+    transition: transform var(--transition-fast);
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+}
+
+.metric-val {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.metric-label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.15rem;
+}
+
+/* Color Themes for metrics */
+.bg-low .metric-val { color: var(--risk-low); }
+.bg-danger .metric-val { color: var(--risk-high); }
+.bg-warning .metric-val { color: var(--risk-medium); }
+.bg-critical .metric-val { color: var(--risk-critical); }
+
+.status-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.85rem;
+}
+
+.risk-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    border: 1px solid transparent;
+}
+
+.risk-badge.LOW {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--risk-low);
+    border-color: rgba(16, 185, 129, 0.3);
+}
+.risk-badge.MEDIUM {
+    background: rgba(245, 158, 11, 0.1);
+    color: var(--risk-medium);
+    border-color: rgba(245, 158, 11, 0.3);
+}
+.risk-badge.HIGH {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--risk-high);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+.risk-badge.CRITICAL {
+    background: rgba(244, 63, 94, 0.15);
+    color: var(--risk-critical);
+    border-color: var(--risk-critical);
+    box-shadow: 0 0 10px rgba(244, 63, 94, 0.2);
+}
+
+/* ==============================================================================
+   VISUALIZER WORKSPACE AREA
+   ============================================================================== */
+.visualizer-area {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 1.5rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.canvas-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+}
+
+.canvas-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border-glass);
+}
+
+.canvas-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.canvas-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: 1px solid var(--border-glass);
+    background: rgba(255, 255, 255, 0.02);
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.canvas-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* SVG Rendering Container */
+.graph-container {
+    flex: 1;
+    position: relative;
+    background: radial-gradient(circle, rgba(17, 24, 39, 0.2) 0%, rgba(3, 7, 18, 0.4) 100%);
+    overflow: hidden;
+}
+
+.graph-placeholder {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.placeholder-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    text-align: center;
+    max-width: 380px;
+    padding: 1rem;
+}
+
+.large-icon {
+    font-size: 3rem;
+    filter: drop-shadow(0 0 10px rgba(99, 102, 241, 0.2));
+}
+
+.placeholder-content h3 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: white;
+}
+
+.placeholder-content p {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+.graph-legend {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    padding: 0.75rem;
+    background: rgba(0,0,0,0.15);
+    border-top: 1px solid var(--border-glass);
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.legend-dot.bg-low { background: var(--risk-low); }
+.legend-dot.bg-medium { background: var(--risk-medium); }
+.legend-dot.bg-high { background: var(--risk-high); }
+.legend-dot.bg-critical { background: var(--risk-critical); }
+.legend-dot.bg-unknown { background: var(--risk-unknown); }
+
+/* ==============================================================================
+   D3 FORCE DIRECTED GRAPH SVG STYLES
+   ============================================================================= */
+.graph-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.node {
+    cursor: pointer;
+    transition: filter var(--transition-fast);
+}
+
+.node circle {
+    stroke-width: 2px;
+}
+
+/* Glowing effects on nodes */
+.node.risk-low circle { fill: var(--risk-low); stroke: rgba(16, 185, 129, 0.4); }
+.node.risk-medium circle { fill: var(--risk-medium); stroke: rgba(245, 158, 11, 0.4); }
+.node.risk-high circle { fill: var(--risk-high); stroke: rgba(239, 68, 68, 0.4); }
+.node.risk-critical circle { fill: var(--risk-critical); stroke: var(--risk-critical); filter: drop-shadow(0 0 6px var(--risk-critical)); }
+.node.risk-unknown circle { fill: var(--risk-unknown); stroke: rgba(107, 114, 128, 0.4); }
+
+.node.selected circle {
+    stroke: #ffffff !important;
+    stroke-width: 3px;
+    stroke-dasharray: 2;
+}
+
+.node:hover circle {
+    filter: brightness(1.2);
+    stroke-width: 3px;
+}
+
+.node-label {
+    font-family: var(--font-main);
+    font-size: 11px;
+    fill: #ffffff;
+    pointer-events: none;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    font-weight: 600;
+}
+
+.link {
+    stroke: rgba(255, 255, 255, 0.12);
+    stroke-width: 1.5px;
+    fill: none;
+    transition: stroke var(--transition-fast), stroke-width var(--transition-fast);
+}
+
+.link.highlighted {
+    stroke: var(--accent-indigo);
+    stroke-width: 2.5px;
+    stroke-opacity: 0.8;
+}
+
+.node.dimmed circle, .node.dimmed text {
+    opacity: 0.15;
+}
+
+.link.dimmed {
+    stroke-opacity: 0.05;
+}
+
+/* ==============================================================================
+   DETAILS SIDE PANEL Drawer
+   ============================================================================= */
+.details-panel {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    bottom: 1.5rem;
+    width: 420px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem;
+    animation: slideIn var(--transition-medium);
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.details-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-glass);
+    padding-bottom: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.details-header h2 {
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.5rem;
+    cursor: pointer;
+    line-height: 1;
+    transition: color var(--transition-fast);
+}
+
+.close-btn:hover {
+    color: white;
+}
+
+.details-content {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.detail-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+.detail-row strong {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.detail-row span, .detail-row code {
+    font-size: 0.85rem;
+}
+
+.detail-row code {
+    font-family: var(--font-code);
+    background: rgba(0,0,0,0.3);
+    padding: 0.1rem 0.3rem;
+    border-radius: 4px;
+}
+
+.badge {
+    display: inline-block;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.badge-info { background: rgba(59, 130, 246, 0.1); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.25); }
+.badge-success { background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.25); }
+.badge-danger { background: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.25); }
+.badge-warning { background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.25); }
+.badge-gray { background: rgba(107, 114, 128, 0.1); color: #9ca3af; border: 1px solid rgba(107, 114, 128, 0.25); }
+
+/* Vulnerability cards in Sidebar */
+.vulns-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.vuln-item {
+    background: rgba(239, 68, 68, 0.03);
+    border: 1px solid rgba(239, 68, 68, 0.15);
+    border-radius: 8px;
+    padding: 0.85rem;
+}
+
+.vuln-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.4rem;
+}
+
+.vuln-item-id {
+    font-weight: 600;
+    color: var(--risk-high);
+    font-family: var(--font-code);
+    font-size: 0.8rem;
+}
+
+.vuln-item-title {
+    font-weight: 600;
+    color: white;
+    font-size: 0.85rem;
+    margin-bottom: 0.4rem;
+}
+
+.vuln-item-desc {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+    max-height: 120px;
+    overflow-y: auto;
+    border-top: 1px dashed rgba(255,255,255,0.05);
+    padding-top: 0.4rem;
+}
+
+/* Checksum Failed Warning Card */
+.checksum-fail-card {
+    background: rgba(244, 63, 94, 0.07);
+    border: 1px solid var(--risk-critical);
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.checksum-fail-card h4 {
+    color: var(--risk-critical);
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.checksum-fail-card p {
+    font-size: 0.8rem;
+    color: #fda4af;
+}
+
+/* ==============================================================================
+   LOADING OVERLAY & SPINNER
+   ============================================================================= */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(7, 10, 19, 0.85);
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.spinner {
+    width: 48px;
+    height: 48px;
+    border: 3px solid rgba(99, 102, 241, 0.1);
+    border-radius: 50%;
+    border-top-color: var(--accent-indigo);
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Helper Utilities */
+.hidden {
+    display: none !important;
+}
+
+.mt-3 { margin-top: 1rem; }
+.muted { color: var(--text-inactive); }
+.text-bold { font-weight: 700; }
+.text-danger { color: var(--risk-high); }
+.text-success { color: var(--risk-low); }
+
+/* Animation pulse for critical severity alerts */
+.blink {
+    animation: alert-pulse 2s infinite;
+}
+
+@keyframes alert-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.4); }
+    70% { box-shadow: 0 0 0 8px rgba(244, 63, 94, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
+}

@@ -14,8 +14,8 @@ from registry_client import RegistryClient
 class DependencyChecker:
     """Core logic for auditing dependencies against registries, local installs, and vulnerabilities."""
 
-    def __init__(self, current_date=None):
-        self.client = RegistryClient()
+    def __init__(self, current_date=None, nvd_api_key=None):
+        self.client = RegistryClient(nvd_api_key=nvd_api_key)
         
         # Simulated run date config (useful for historical testing and validation).
         # Translates 'YYYY-MM-DD' strings to naive datetime objects.
@@ -279,5 +279,7 @@ class DependencyChecker:
             "vulnerabilities": vulnerabilities,
             "file_verification": file_verification,
             "ecosystem": ecosystem,
-            "hashes": reg_info.get("hashes", [])
+            "hashes": reg_info.get("hashes", []),
+            "requires_dist": reg_info.get("requires_dist", []),
+            "dependencies": reg_info.get("dependencies", {})
         }

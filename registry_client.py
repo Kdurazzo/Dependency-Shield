@@ -12,6 +12,10 @@ from datetime import datetime
 class RegistryClient:
     """Client for querying package registries (PyPI, npm) and security databases (OSV)."""
 
+    def __init__(self, nvd_api_key=None):
+        import os
+        self.nvd_api_key = nvd_api_key or os.environ.get("NVD_API_KEY")
+
     # ==========================================================================
     # INTERNAL NETWORK HELPER
     # ==========================================================================
@@ -110,7 +114,8 @@ class RegistryClient:
             "latest_version": latest_version,
             "release_date": release_date,
             "hashes": hashes,
-            "ecosystem": "PyPI"
+            "ecosystem": "PyPI",
+            "requires_dist": info.get("requires_dist") or []
         }
 
     # ==========================================================================
@@ -179,7 +184,8 @@ class RegistryClient:
             "latest_version": data.get("dist-tags", {}).get("latest"),
             "release_date": release_date,
             "hashes": hashes,
-            "ecosystem": "npm"
+            "ecosystem": "npm",
+            "dependencies": version_info.get("dependencies") or {}
         }
 
     # ==========================================================================
@@ -232,7 +238,7 @@ class RegistryClient:
         url = f"https://services.nvd.nist.gov/rest/json/cves/2.0?cveId={cve_id}"
         
         headers = {}
-        api_key = os.environ.get("NVD_API_KEY")
+        api_key = self.nvd_api_key
         if api_key:
             headers["apiKey"] = api_key
             

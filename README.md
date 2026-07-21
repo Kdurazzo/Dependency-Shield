@@ -29,7 +29,7 @@ DepShield aggregates advisory information from two secure, reliable feeds:
 
 1. Navigate to the project directory:
    ```bash
-   cd /Users/kdurazzo/.gemini/antigravity/scratch/dep-shield
+   cd Dependency-Checker
    ```
 2. Make the CLI script executable:
    ```bash
