@@ -258,5 +258,43 @@ class TestDepShield(unittest.TestCase):
         self.assertEqual(res["age_days"], 46)
         self.assertFalse(res["is_recent"])
 
+    # ==========================================================================
+    # TEST: FLAT REPORT BUILDER (API LAYER)
+    # ==========================================================================
+    def test_build_flat_report(self):
+        """Verifies that flat security report formats package lists and summaries correctly."""
+        from web_server import build_flat_report
+        
+        checker = DependencyChecker(current_date="2026-06-16")
+        # Mock client to return controlled values
+        class MockRegistryClient:
+            def get_pypi_package(self, name, version=None):
+                return {
+                    "name": name,
+                    "version": "1.0.0",
+                    "latest_version": "1.0.0",
+                    "release_date": datetime(2026, 6, 12), # 4 days old -> recent!
+                    "hashes": [],
+                    "ecosystem": "PyPI",
+                    "requires_dist": []
+                }
+            def query_osv_vulnerabilities(self, name, version, ecosystem):
+                return [{
+                    "id": "CVE-TEST",
+                    "summary": "Mock vulnerability",
+                    "details": "Mock details"
+                }]
+
+        checker.client = MockRegistryClient()
+        report = build_flat_report([{"name": "test-pkg", "version": "1.0.0", "ecosystem": "PyPI"}], checker, max_depth=1)
+        
+        self.assertEqual(report["total_packages"], 1)
+        self.assertEqual(report["vulnerabilities_count"], 1)
+        self.assertEqual(report["recent_packages_count"], 1)
+        self.assertEqual(report["risk_level"], "HIGH")
+        self.assertEqual(len(report["packages"]), 1)
+        self.assertEqual(report["packages"][0]["name"], "test-pkg")
+        self.assertEqual(report["packages"][0]["risk"], "high")
+
 if __name__ == "__main__":
     unittest.main()

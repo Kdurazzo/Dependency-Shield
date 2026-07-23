@@ -169,6 +169,61 @@ def build_graph(root_packages, checker, max_depth=3):
         "links": links
     }
 
+def build_flat_report(root_packages, checker, max_depth=3):
+    """
+    Builds a simplified, flat security audit report by traversing dependencies
+    and summarizing vulnerabilities, age, and checksums.
+    """
+    graph = build_graph(root_packages, checker, max_depth=max_depth)
+    
+    total = len(graph["nodes"])
+    vulns = 0
+    recent = 0
+    checksum_fail = 0
+    
+    packages_list = []
+    for node in graph["nodes"]:
+        v_list = node.get("vulnerabilities") or []
+        vulns += len(v_list)
+        if node.get("is_recent"):
+            recent += 1
+        
+        v_file = node.get("file_verification")
+        if v_file and not v_file.get("verified"):
+            checksum_fail += 1
+            
+        packages_list.append({
+            "name": node["name"],
+            "ecosystem": node["ecosystem"],
+            "requested_version": node["requested_version"],
+            "resolved_version": node["resolved_version"],
+            "installed_version": node["installed_version"],
+            "release_date": node["release_date"],
+            "age_days": node["age_days"],
+            "risk": node["risk"],
+            "vulnerabilities": v_list,
+            "file_verification": node["file_verification"],
+            "error": node["error"]
+        })
+        
+    if checksum_fail > 0:
+        risk_level = "CRITICAL"
+    elif vulns > 0:
+        risk_level = "HIGH"
+    elif recent > 0:
+        risk_level = "MEDIUM"
+    else:
+        risk_level = "LOW"
+        
+    return {
+        "risk_level": risk_level,
+        "total_packages": total,
+        "vulnerabilities_count": vulns,
+        "recent_packages_count": recent,
+        "checksum_failures_count": checksum_fail,
+        "packages": packages_list
+    }
+
 # ==============================================================================
 # SECTION 3: HTTP REQUEST HANDLER
 # ==============================================================================
@@ -327,6 +382,97 @@ class DepShieldHTTPHandler(BaseHTTPRequestHandler):
                 self.send_error_response(500, f"Error building dependency graph: {str(e)}")
             return
 
+        elif path == "/api/v1/audit":
+            content_length = int(self.headers.get("Content-Length", 0))
+            if content_length == 0:
+                self.send_error_response(400, "Empty payload")
+                return
+                
+            raw_data = self.rfile.read(content_length)
+            try:
+                payload = json.loads(raw_data.decode('utf-8'))
+            except Exception:
+                self.send_error_response(400, "Invalid JSON body")
+                return
+                
+            packages = payload.get("packages", [])
+            max_depth = payload.get("max_depth", 3)
+            
+            if not packages:
+                self.send_error_response(400, "No packages list provided")
+                return
+                
+            nvd_api_key = self.headers.get("X-NVD-API-Key")
+            checker = DependencyChecker(nvd_api_key=nvd_api_key)
+            try:
+                report = build_flat_report(packages, checker, max_depth=max_depth)
+                self.send_json_response(200, report)
+            except Exception as e:
+                self.send_error_response(500, f"Error building audit report: {str(e)}")
+            return
+
+        elif path == "/api/v1/audit/manifest":
+            filename = self.headers.get("X-File-Name")
+            if not filename:
+                self.send_error_response(400, "X-File-Name header is missing")
+                return
+                
+            content_length = int(self.headers.get("Content-Length", 0))
+            if content_length == 0:
+                self.send_error_response(400, "Empty upload body")
+                return
+                
+            raw_data = self.rfile.read(content_length)
+            max_depth_str = self.headers.get("X-Max-Depth", "3")
+            try:
+                max_depth = int(max_depth_str)
+            except ValueError:
+                max_depth = 3
+                
+            suffix = f"_{filename}"
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                tmp.write(raw_data)
+                tmp_path = tmp.name
+                
+            packages = []
+            try:
+                lower_fn = filename.lower()
+                if lower_fn == "requirements.txt" or "requirements" in lower_fn:
+                    packages = ManifestParser.parse_requirements_txt(tmp_path)
+                elif lower_fn == "package.json":
+                    packages = ManifestParser.parse_package_json(tmp_path)
+                elif lower_fn == "package-lock.json":
+                    packages = ManifestParser.parse_package_lock_json(tmp_path)
+                elif lower_fn.endswith(".json"):
+                    if "lock" in lower_fn:
+                        packages = ManifestParser.parse_package_lock_json(tmp_path)
+                    else:
+                        packages = ManifestParser.parse_package_json(tmp_path)
+                else:
+                    self.send_error_response(400, "Unsupported manifest format. File must be requirements.txt, package.json, or package-lock.json")
+                    os.unlink(tmp_path)
+                    return
+            except Exception as e:
+                self.send_error_response(400, f"Error parsing uploaded manifest: {str(e)}")
+                os.unlink(tmp_path)
+                return
+            finally:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+                    
+            if not packages:
+                self.send_error_response(400, "No valid package dependencies found in the uploaded manifest")
+                return
+                
+            nvd_api_key = self.headers.get("X-NVD-API-Key")
+            checker = DependencyChecker(nvd_api_key=nvd_api_key)
+            try:
+                report = build_flat_report(packages, checker, max_depth=max_depth)
+                self.send_json_response(200, report)
+            except Exception as e:
+                self.send_error_response(500, f"Error building audit report: {str(e)}")
+            return
+
         elif path == "/api/explain-vulnerability":
             content_length = int(self.headers.get("Content-Length", 0))
             if content_length == 0:
@@ -377,6 +523,60 @@ class DepShieldHTTPHandler(BaseHTTPRequestHandler):
                     res_data = json.loads(response.read().decode('utf-8'))
                     text = res_data["candidates"][0]["content"]["parts"][0]["text"]
                     self.send_json_response(200, {"explanation": text})
+            except Exception as e:
+                self.send_error_response(500, f"Gemini API request failed: {str(e)}")
+            return
+            
+        elif path == "/api/v1/analyze-upgrade":
+            content_length = int(self.headers.get("Content-Length", 0))
+            if content_length == 0:
+                self.send_error_response(400, "Empty request body")
+                return
+                
+            raw_data = self.rfile.read(content_length)
+            try:
+                data = json.loads(raw_data.decode('utf-8'))
+            except Exception:
+                self.send_error_response(400, "Invalid JSON body")
+                return
+                
+            pkg_name = data.get("package_name", "Unknown Package")
+            resolved_ver = data.get("resolved_version", "N/A")
+            latest_ver = data.get("latest_version", "N/A")
+            ecosystem = data.get("ecosystem", "PyPI")
+            
+            gemini_key = self.headers.get("X-Gemini-API-Key")
+            if not gemini_key:
+                self.send_error_response(400, "Gemini API Key is missing. Please configure it in Settings (⚙️) at the top of the page.")
+                return
+                
+            gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+            prompt = (
+                f"Analyze the breaking changes, risk level, and mitigation steps when upgrading "
+                f"the {ecosystem} package '{pkg_name}' from version '{resolved_ver}' to the latest version '{latest_ver}'.\n\n"
+                f"Provide a concise, professional risk assessment and a step-by-step upgrade strategy. "
+                f"Format your response in clean Markdown with appropriate headers."
+            )
+            
+            payload = {
+                "contents": [{
+                    "parts": [{
+                        "text": prompt
+                    }]
+                }]
+            }
+            req_data = json.dumps(payload).encode('utf-8')
+            req = urllib.request.Request(
+                gemini_url,
+                data=req_data,
+                headers={'Content-Type': 'application/json'},
+                method='POST'
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=15) as response:
+                    res_data = json.loads(response.read().decode('utf-8'))
+                    text = res_data["candidates"][0]["content"]["parts"][0]["text"]
+                    self.send_json_response(200, {"analysis": text})
             except Exception as e:
                 self.send_error_response(500, f"Gemini API request failed: {str(e)}")
             return

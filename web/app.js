@@ -428,6 +428,39 @@ function showDetails(node) {
         </div>
     `;
     
+    // Outdated Version Warning Card
+    let isOutdated = false;
+    if (node.resolved_version && node.latest_version && 
+        node.resolved_version !== 'N/A' && node.latest_version !== 'N/A' && 
+        node.resolved_version !== node.latest_version) {
+        isOutdated = true;
+    }
+    
+    if (isOutdated) {
+        const safeId = (node.id || node.name).replace(/[^a-zA-Z0-9]/g, '_');
+        detailsHtml += `
+            <div class="checksum-fail-card" style="background: rgba(245, 158, 11, 0.07); border-color: var(--risk-medium); margin-top: 1rem;">
+                <h4 style="color: var(--risk-medium); margin-bottom: 0.25rem;">⚠️ Outdated Dependency Warning</h4>
+                <p style="font-size: 0.75rem; margin-bottom: 0.5rem; color: #e2e8f0; line-height: 1.3;">
+                    Resolved version is <strong>${node.resolved_version}</strong>, but the latest version available on the registry is <strong>${node.latest_version}</strong>.
+                </p>
+                <button class="btn btn-primary btn-ai-upgrade" 
+                        style="padding: 0.25rem 0.5rem; font-size: 0.7rem; display: flex; align-items: center; gap: 0.25rem; background: linear-gradient(135deg, var(--accent-purple), var(--accent-indigo)); border: none; border-radius: 4px; color: #fff; cursor: pointer;"
+                        data-pkg-name="${node.name}" 
+                        data-resolved="${node.resolved_version}" 
+                        data-latest="${node.latest_version}"
+                        data-ecosystem="${node.ecosystem}"
+                        data-safe-id="${safeId}">
+                    ✨ Analyze Upgrade with Gemini
+                </button>
+                <div id="ai-upgrade-${safeId}" class="hidden" style="margin-top: 0.75rem; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 0.5rem; font-size: 0.75rem; color: #cbd5e1; line-height: 1.4; text-align: left;">
+                    <div class="spinner" style="width: 12px; height: 12px; border-width: 2px; margin-bottom: 0.25rem;"></div>
+                    Analyzing upgrade paths and risks...
+                </div>
+            </div>
+        `;
+    }
+    
     // Checksum verification detail box
     if (node.file_verification) {
         const verified = node.file_verification.verified;
@@ -562,6 +595,66 @@ function showDetails(node) {
             })
             .catch(err => {
                 explanationArea.innerHTML = `<span class="text-danger">Error: ${err.message}</span>`;
+                btn.disabled = false;
+            });
+        });
+    });
+
+    // Bind AI Upgrade advisor click handler
+    const aiUpgradeButtons = content.querySelectorAll('.btn-ai-upgrade');
+    aiUpgradeButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const pkgName = btn.getAttribute('data-pkg-name');
+            const resolved = btn.getAttribute('data-resolved');
+            const latest = btn.getAttribute('data-latest');
+            const ecosystem = btn.getAttribute('data-ecosystem');
+            const safeId = btn.getAttribute('data-safe-id');
+            
+            const upgradeArea = document.getElementById(`ai-upgrade-${safeId}`);
+            upgradeArea.classList.remove('hidden');
+            upgradeArea.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="spinner" style="width: 12px; height: 12px; border-width: 2px;"></div>
+                    <span>Gemini is analyzing version delta...</span>
+                </div>
+            `;
+            
+            btn.disabled = true;
+            
+            fetch('/api/v1/analyze-upgrade', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...getAuthHeaders()
+                },
+                body: JSON.stringify({ 
+                    package_name: pkgName, 
+                    resolved_version: resolved, 
+                    latest_version: latest, 
+                    ecosystem: ecosystem 
+                })
+            })
+            .then(res => {
+                if (!res.ok) {
+                    return res.json().then(err => { throw new Error(err.error || 'Server error'); });
+                }
+                return res.json();
+            })
+            .then(data => {
+                let formattedExp = data.analysis
+                    .replace(/\n/g, '<br>')
+                    .replace(/\*\*(.*?)\*\//g, '<strong>$1</strong>')
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                    .replace(/`(.*?)`/g, '<code>$1</code>');
+                upgradeArea.innerHTML = `
+                    <strong style="color: var(--accent-cyan); display: block; margin-bottom: 0.25rem;">✨ Gemini Upgrade Analysis:</strong>
+                    <div>${formattedExp}</div>
+                `;
+            })
+            .catch(err => {
+                upgradeArea.innerHTML = `<span class="text-danger">Error: ${err.message}</span>`;
                 btn.disabled = false;
             });
         });

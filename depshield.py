@@ -82,6 +82,8 @@ def main():
     parser.add_argument("--md-name", default="depshield_report.md", help="Filename for the Markdown report")
     # Simulated current date used to run historical tests or check release age against a fixed timeline
     parser.add_argument("--current-date", default="2026-06-16", help="Simulated run date (YYYY-MM-DD) for age validation")
+    # JSON printing mode
+    parser.add_argument("-j", "--json", action="store_true", help="Print audit results as a flat JSON report to stdout instead of creating files")
 
     args = parser.parse_args()
 
@@ -190,6 +192,42 @@ def main():
     reporter = SecurityReporter()
     summary = reporter.calculate_summary(results)
     
+    # If JSON output is requested, format and print, then exit immediately
+    if args.json:
+        flat_packages = []
+        for r in results:
+            flat_packages.append({
+                "name": r["name"],
+                "ecosystem": r.get("ecosystem", "PyPI"),
+                "requested_version": r.get("requested_version") or "Latest",
+                "resolved_version": r.get("resolved_version", "N/A"),
+                "installed_version": r.get("installed_version"),
+                "release_date": r.get("release_date", "Unknown"),
+                "age_days": r.get("age_days"),
+                "risk": "critical" if (r.get("file_verification") and not r["file_verification"].get("verified")) else ("high" if r.get("vulnerabilities") else ("medium" if r.get("is_recent") else "low")),
+                "vulnerabilities": r.get("vulnerabilities", []),
+                "file_verification": r.get("file_verification"),
+                "error": r.get("error")
+            })
+        report = {
+            "risk_level": summary["risk_level"].split(" ")[0],
+            "total_packages": summary["total_packages"],
+            "vulnerabilities_count": summary["vulnerabilities_count"],
+            "recent_packages_count": summary["recent_packages_count"],
+            "checksum_failures_count": summary["checksum_failures_count"],
+            "packages": flat_packages
+        }
+        import json
+        print(json.dumps(report, indent=2))
+        
+        # Match exit codes
+        if summary["checksum_failures_count"] > 0:
+            sys.exit(3)
+        elif summary["vulnerabilities_count"] > 0:
+            sys.exit(2)
+        else:
+            sys.exit(0)
+
     # Save the reports.
     os.makedirs(args.output_dir, exist_ok=True)
     html_path = os.path.join(args.output_dir, args.html_name)
