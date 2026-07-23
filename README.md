@@ -1,7 +1,7 @@
 # DepShield User Guide
 ### *Platform-Independent Software & Dependency Supply Chain Security Auditor*
 
-DepShield is a lightweight, zero-dependency command-line utility designed to check software dependency manifests *prior to installation*. It audits package metadata, matches installed local versions, validates archive checksums, checks publication ages, and queries vulnerability databases to safeguard environments against open-source supply chain attacks.
+DepShield is a lightweight, zero-dependency security auditor designed to check software dependency manifests *prior to installation*. It audits package metadata, validates local versions, validates archive checksums, checks publication ages, queries vulnerability databases, and features an interactive web visualization dashboard with Gemini AI vulnerability remediation and upgrade planning.
 
 ---
 
@@ -43,7 +43,7 @@ DepShield aggregates advisory information from two secure, reliable feeds:
 
 ---
 
-## 🛠️ Commands & Usage Syntax
+## 🛠️ CLI Commands & Usage Syntax
 
 ```bash
 ./depshield.py <manifest_file> [options]
@@ -57,34 +57,104 @@ DepShield aggregates advisory information from two secure, reliable feeds:
     * `package-lock.json` (Node.js pinned lockfile)
 
 ### 2. Options
+* `-j`, `--json`: Print audit results as a flat JSON report directly to standard output instead of creating report files. Ideal for CI/CD pipeline scripting.
 * `-f`, `--file <path>`: Path to a local package archive (e.g. `.whl`, `.tgz`, `.zip`) to verify checksum integrity against registry records.
 * `-o`, `--output-dir <path>`: Directory where Markdown and HTML audit reports will be saved (default: `.`).
 * `--html-name <filename>`: Custom filename for the HTML report (default: `depshield_report.html`).
 * `--md-name <filename>`: Custom filename for the Markdown report (default: `depshield_report.md`).
-* `--current-date <YYYY-MM-DD>`: Simulated current date used to compute release ages (default: `2026-06-16`). Useful for testing historical package lists or reproducible pipeline builds.
+* `--current-date <YYYY-MM-DD>`: Simulated current date used to compute release ages (default: `2026-06-16`). Useful for testing historical package lists.
 
 ---
 
-## 💡 Example CLI Executions
+## 🐳 Containerized Standalone CLI Execution
+If you do not have Python installed on your host system, run audits inside a zero-host-dependency Docker container using our launcher utility scripts.
 
-### Example A: Basic Manifest Scan
-Audit all packages listed in a Node.js manifest and check for vulnerabilities:
+### macOS/Linux:
 ```bash
-./depshield.py test_package.json -o ./reports
+./run_cli.sh test_requirements.txt -o ./reports
 ```
 
-### Example B: Local Archive Integrity Verification
-Validate that a downloaded package archive matches the official hashes reported by the upstream registry before installing it:
-```bash
-./depshield.py test_package.json -f lodash-4.17.21.tgz -o ./reports
+### Windows:
+```cmd
+run_cli.bat test_requirements.txt -o .\reports
 ```
-*DepShield will automatically extract the package name and version from the file path, compute its SHA1, SHA256, and SHA512 hashes, and verify them against npm registry records.*
 
-### Example C: Simulating Run Dates
-Audit a Python manifest relative to a historical or target date:
+---
+
+## 🖥️ Interactive Web Dashboard
+DepShield includes a premium Glassmorphism-style dashboard running entirely on standard Python server handlers. 
+
+### Starting the Server
+Start the local server (defaults to port `8080`):
 ```bash
-./depshield.py test_requirements.txt --current-date 2026-06-16 -o ./reports
+python3 web_server.py
 ```
+Or run via Docker Compose:
+```bash
+docker-compose up
+```
+Open [http://localhost:8080](http://localhost:8080) in your browser.
+
+### Key Web Features:
+- **D3 Force-Directed Link Graph:** Interactive, draggable visual dependency graph. Vulnerable nodes glow orange/red; tampered checksum packages flash.
+- **Dynamic API Key Config (⚙️):** Paste your personal NVD database key or Gemini AI key through the Settings panel. Keys are stored safely in `localStorage` and never hardcoded.
+- **Gemini AI Explainer Drawer:** Click any vulnerable package node to open detail advisories, then click `Explain with Gemini AI` to generate custom remediation and risk analyses.
+- **Gemini AI Upgrade Advisor:** Displays warnings when package resolved versions are outdated compared to the registry latest release (e.g. `minimatch 3.0.0` vs. `10.2.5`). Click `Analyze Upgrade with Gemini` to check for upgrade risks and migration paths.
+
+---
+
+## 🔌 Programmatic REST API Layer
+Other applications, CI/CD tools, or backend scripts can query the web server programmatically:
+
+### 1. `POST /api/v1/audit`
+Pass a flat JSON list of packages to audit:
+- **Body JSON:**
+  ```json
+  {
+    "packages": [
+      {"name": "lodash", "version": "4.17.20", "ecosystem": "npm"}
+    ],
+    "max_depth": 3
+  }
+  ```
+- **Response JSON:** Returns a summarized flat audit log containing `risk_level`, `vulnerabilities_count`, and a `packages` metadata array.
+
+### 2. `POST /api/v1/audit/manifest`
+Submit a raw manifest text body. Include the `X-File-Name` header (e.g., `X-File-Name: requirements.txt`) to define the parser format.
+
+### 3. `POST /api/v1/v1/analyze-upgrade`
+Consult Gemini regarding version upgrades.
+- **Body JSON:**
+  ```json
+  {
+    "package_name": "minimatch",
+    "resolved_version": "3.0.0",
+    "latest_version": "10.2.5",
+    "ecosystem": "npm"
+  }
+  ```
+- **Response JSON:** `{"analysis": "Markdown string explaining risks and upgrade path"}`
+
+---
+
+## 🤖 Model Context Protocol (MCP) Server Setup
+To configure AI coding assistants (like Gemini, Claude, or cursor-agent) to perform dependency audits in your active workspace, point them to our stdin/stdout JSON-RPC server.
+
+Add this entry to your agent config file:
+```json
+{
+  "mcpServers": {
+    "depshield": {
+      "command": "python3",
+      "args": ["/Users/ken/dev/Dependency-Checker/mcp_server.py"]
+    }
+  }
+}
+```
+
+### Exposed MCP Tools:
+1. `audit_manifest(path, max_depth)`: Audits local manifest files inside your workspace path.
+2. `audit_package(name, version, ecosystem, max_depth)`: Audits a specific dependency package recursively.
 
 ---
 
@@ -100,23 +170,9 @@ DepShield evaluates package risks and exits with a shell code indicating the sev
 
 ---
 
-## 📝 Generated Audit Reports
-
-DepShield produces two administrative documents in the designated `--output-dir`:
-
-1. **Markdown Report (`depshield_report.md`)**:
-   * Designed for terminal output rendering, GitHub PR integrations, or build log outputs.
-   * Employs GitHub-style alert callouts (`[!WARNING]`, `[!CAUTION]`).
-   * Incorporates CVSS scores from NIST NVD.
-2. **HTML Dashboard (`depshield_report.html`)**:
-   * A premium, self-contained interactive webpage.
-   * Utilizes modern dark-mode layouts, glassmorphic card panels, pulsing alarm animations for security failures, and expandable CVE detail cards.
-
----
-
 ## 🧪 Running Automated Tests
 The package includes a comprehensive unit testing suite using Python's standard `unittest` framework:
 ```bash
 python3 test_depshield.py
 ```
-This suite automatically tests requirements parsing, npm package.json/lockfile reading, file hash calculations, and validates live connection handlers to the PyPI, npm, OSV, and NIST NVD REST API endpoints.
+This suite automatically tests requirements parsing, npm package.json/lockfile reading, file hash calculations, REST API handlers, and validates live connection handlers to upstream endpoints.
