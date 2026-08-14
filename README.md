@@ -1,6 +1,8 @@
 # DepShield User Guide
 ### *Platform-Independent Software & Dependency Supply Chain Security Auditor*
 
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+
 DepShield is a lightweight, zero-dependency security auditor designed to check software dependency manifests *prior to installation*. It audits package metadata, validates local versions, validates archive checksums, checks publication ages, queries vulnerability databases, and features an interactive web visualization dashboard with Gemini AI vulnerability remediation and upgrade planning.
 
 ---
@@ -176,3 +178,10 @@ The package includes a comprehensive unit testing suite using Python's standard 
 python3 test_depshield.py
 ```
 This suite automatically tests requirements parsing, npm package.json/lockfile reading, file hash calculations, REST API handlers, and validates live connection handlers to upstream endpoints.
+
+---
+
+## 📄 License
+
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for full details.
+
