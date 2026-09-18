@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "depshield",
+  "version": "1.0.0",
+  "server": {
+    "host": "0.0.0.0",
+    "backend_port": 8000,
+    "dashboard_port": 8080,
+    "workers": 4
+  },
+  "scanner": {
+    "default_max_depth": 3,
+    "simulated_current_date": "2026-06-16",
+    "supported_ecosystems": [
+      "PyPI",
+      "npm"
+    ],
+    "supported_manifests": [
+      "requirements.txt",
+      "package.json",
+      "package-lock.json"
+    ]
+  },
+  "storage": {
+    "logs_dir": "/app/logs",
+    "reports_dir": "/app/reports",
+    "data_dir": "/app/data"
+  },
+  "integrations": {
+    "osv": {
+      "endpoint": "https://api.osv.dev/v1/query",
+      "timeout_seconds": 10
+    },
+    "nvd": {
+      "endpoint": "https://services.nvd.nist.gov/rest/json/cves/2.0",
+      "rate_limit_delay_seconds": 0.6,
+      "api_key_env": "NVD_API_KEY"
+    },
+    "gemini": {
+      "model": "gemini-1.5-flash",
+      "endpoint": "https://generativelanguage.googleapis.com/v1beta/models",
+      "api_key_env": "GEMINI_API_KEY"
+    }
+  }
+}

@@ -599,7 +599,7 @@ def run_server(port=8080):
         sys.exit(0)
 
 if __name__ == "__main__":
-    port = 8080
+    port = int(os.environ.get("PORT", 8080))
     if len(sys.argv) > 1:
         try:
             port = int(sys.argv[1])

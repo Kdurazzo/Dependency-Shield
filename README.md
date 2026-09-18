@@ -148,15 +148,18 @@ Add this entry to your agent config file:
   "mcpServers": {
     "depshield": {
       "command": "python3",
-      "args": ["/Users/ken/dev/Dependency-Checker/mcp_server.py"]
+      "args": ["/path/to/Dependency-Checker/mcp_server.py"]
     }
   }
 }
 ```
 
-### Exposed MCP Tools:
-1. `audit_manifest(path, max_depth)`: Audits local manifest files inside your workspace path.
-2. `audit_package(name, version, ecosystem, max_depth)`: Audits a specific dependency package recursively.
+### Exposed MCP Tools & Recommended Invocation Order:
+1. **`audit_manifest(path, max_depth)`** *(Step 1 - Project Discovery)*: Audits local manifest files recursively across the workspace for CVEs, release age, and checksum tampering.
+2. **`audit_package(name, version, ecosystem, max_depth)`** *(Step 2 - Deep Dive)*: Deep-dive vulnerability and integrity inspection on an individual dependency.
+3. **`analyze_upgrade(package_name, resolved_version, latest_version, ecosystem)`** *(Step 3 - Safe Migration)*: Evaluates breaking change risks, semver deprecations, and upgrade plans via Gemini AI.
+
+*See the full [MCP Agent Integration Guide](docs/MCP_GUIDE.md) for workflow diagrams, schema specifications, and Claude/Cursor recipes.*
 
 ---
 
@@ -181,7 +184,32 @@ This suite automatically tests requirements parsing, npm package.json/lockfile r
 
 ---
 
+## 🐳 Modular Docker Infrastructure & Factory Reset
+
+DepShield includes a complete multi-container Docker environment modeled after the [LiteGraph Docker architecture](https://github.com/litegraphdb/litegraph/tree/main/docker):
+
+- **Backend Service** (`depshield-backend` on port `8000`): Dedicated Python API service.
+- **Dashboard Service** (`depshield-dashboard` on port `8080`): Alpine Nginx reverse proxy hosting the Glassmorphism frontend and routing `/api/*` to the backend.
+- **Persisted Directories**: Pre-configured `docker/data/`, `docker/reports/`, and `docker/logs/` volumes.
+- **Factory Reset System** (`docker/factory/`): Run `./reset.sh` (macOS/Linux) or `reset.bat` (Windows) to restore the environment to clean-install state.
+
+Quick start:
+```bash
+cd docker
+docker compose up -d
+```
+*Detailed documentation: [Docker User Guide](docker/README.md).*
+
+---
+
+## 📮 Postman Collection & REST API Reference
+
+For third-party integrators and QA teams:
+- **Postman Collection v2.1**: [`postman/DepShield_API.postman_collection.json`](postman/DepShield_API.postman_collection.json). Fully documented with variable support (`baseUrl`, `nvdApiKey`, `geminiApiKey`) and saved example responses for every endpoint.
+- **Comprehensive API Reference**: [`docs/API_REFERENCE.md`](docs/API_REFERENCE.md). Full surface area specification with cURL, Python, and fetch usage examples across all endpoints.
+
+---
+
 ## 📄 License
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for full details.
-

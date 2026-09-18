@@ -1,6 +1,30 @@
+# Environment & Secrets
+.env
+*.env
+docker/.env
+
+# macOS system files
+.DS_Store
+*/.DS_Store
+
+# Python cache & build artifacts
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# DepShield generated reports & test logs
 reports/
+docker/reports/*
+!docker/reports/.gitkeep
+docker/data/*
+!docker/data/.gitkeep
+docker/logs/backend/*
+!docker/logs/backend/.gitkeep
+docker/logs/dashboard/*
+!docker/logs/dashboard/.gitkeep
+docker/logs/mcp/*
+!docker/logs/mcp/.gitkeep
 depshield_report.*
 depshield_npm_report.*
 depshield_npm_file_report.*

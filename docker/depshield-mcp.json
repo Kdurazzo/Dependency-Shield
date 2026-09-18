@@ -1,0 +1,32 @@
+{
+  "mcpServers": {
+    "depshield": {
+      "command": "python3",
+      "args": [
+        "/app/mcp_server.py"
+      ],
+      "env": {
+        "NVD_API_KEY": "${NVD_API_KEY}",
+        "GEMINI_API_KEY": "${GEMINI_API_KEY}"
+      },
+      "description": "DepShield software supply chain security and dependency vulnerability auditor",
+      "tools": [
+        {
+          "name": "audit_manifest",
+          "description": "Scans requirements.txt, package.json, or package-lock.json for CVEs, age, and checksum tampering.",
+          "phase": "Phase 1 - Repository Discovery"
+        },
+        {
+          "name": "audit_package",
+          "description": "Performs deep-dive recursive vulnerability and checksum analysis on a single package.",
+          "phase": "Phase 2 - Package Deep Dive"
+        },
+        {
+          "name": "analyze_upgrade",
+          "description": "Synthesizes breaking changes, semver risks, and migration plans for version updates.",
+          "phase": "Phase 3 - Safe Remediation & Upgrades"
+        }
+      ]
+    }
+  }
+}

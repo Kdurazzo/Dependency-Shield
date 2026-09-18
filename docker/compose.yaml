@@ -1,0 +1,103 @@
+services:
+
+  #
+  # DepShield Backend
+  # Core Python REST API server providing vulnerability auditing,
+  # OSV / NVD resolution, dependency graph extraction, and Gemini AI endpoints.
+  #
+
+  depshield-backend:
+    container_name: 'depshield-backend'
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: 'depshield:latest'
+    restart: 'unless-stopped'
+    stdin_open: true
+    tty: true
+    entrypoint: ["python3", "/app/web_server.py", "8000"]
+    ports:
+      - '${BACKEND_PORT:-8000}:8000'
+    environment:
+      PORT: '8000'
+      NVD_API_KEY: '${NVD_API_KEY:-}'
+      GEMINI_API_KEY: '${GEMINI_API_KEY:-}'
+    volumes:
+      - ./logs/backend:/app/logs
+      - ./reports:/app/reports
+      - ./data:/app/data
+      - ./depshield.json:/app/depshield.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/health || python3 -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/api/health\")'"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  #
+  # DepShield Dashboard
+  # High-performance Nginx web server hosting the Glassmorphism interactive
+  # dependency graph UI, reverse-proxying API traffic to the backend service.
+  #
+
+  depshield-dashboard:
+    container_name: 'depshield-dashboard'
+    image: 'nginx:alpine'
+    restart: 'unless-stopped'
+    ports:
+      - '${DASHBOARD_PORT:-8080}:80'
+    depends_on:
+      depshield-backend:
+        condition: service_healthy
+    volumes:
+      - ../web:/usr/share/nginx/html:ro
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./logs/dashboard:/var/log/nginx
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:80/nginx-health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  #
+  # DepShield MCP Server
+  # Model Context Protocol service for AI agents (Antigravity, Claude Desktop, Cursor).
+  # Run with: docker compose --profile mcp up
+  #
+
+  depshield-mcp:
+    container_name: 'depshield-mcp'
+    image: 'depshield:latest'
+    restart: 'unless-stopped'
+    profiles:
+      - 'mcp'
+      - 'all'
+    stdin_open: true
+    tty: true
+    entrypoint: ["python3", "/app/mcp_server.py"]
+    environment:
+      NVD_API_KEY: '${NVD_API_KEY:-}'
+      GEMINI_API_KEY: '${GEMINI_API_KEY:-}'
+    volumes:
+      - ./logs/mcp:/app/logs
+      - ./data:/app/data
+
+  #
+  # DepShield CLI Audit Runner
+  # One-off container to run audits against mounted workspaces.
+  # Run with: docker compose run --rm depshield-cli /workspace/test_requirements.txt -o /app/reports
+  #
+
+  depshield-cli:
+    container_name: 'depshield-cli'
+    image: 'depshield:latest'
+    profiles:
+      - 'cli'
+      - 'tools'
+    stdin_open: true
+    tty: true
+    entrypoint: ["python3", "/app/depshield.py"]
+    environment:
+      NVD_API_KEY: '${NVD_API_KEY:-}'
+    volumes:
+      - ../:/workspace:ro
+      - ./reports:/app/reports

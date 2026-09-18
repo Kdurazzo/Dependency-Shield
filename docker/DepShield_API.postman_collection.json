@@ -1,0 +1,410 @@
+{
+  "info": {
+    "_postman_id": "a1e9c7d4-8f3b-4122-8051-de9541e289f0",
+    "name": "DepShield REST API",
+    "description": "# DepShield REST API Collection\n\nDepShield is a lightweight, zero-host-dependency software supply chain security auditor and package vulnerability intelligence service.\n\n### Collection Variables:\n- ****: Host and port of the target service. Default is  (direct backend API) or  (dashboard reverse proxy).\n- ****: Optional NIST National Vulnerability Database API key for elevated CVSS rating limits.\n- ****: Optional Google Gemini API key used for automated vulnerability remediation guides and upgrade impact analysis.\n\n### Authentication:\nAuthentication is passed per-request using the custom request headers  and .",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000",
+      "type": "string",
+      "description": "Base URL of the DepShield service (http://localhost:8000 for backend, http://localhost:8080 for dashboard proxy)"
+    },
+    {
+      "key": "nvdApiKey",
+      "value": "",
+      "type": "string",
+      "description": "Optional NIST NVD REST API key (https://nvd.nist.gov/developers/request-an-api-key)"
+    },
+    {
+      "key": "geminiApiKey",
+      "value": "",
+      "type": "string",
+      "description": "Optional Google Gemini API Key (https://aistudio.google.com/)"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health & System",
+      "item": [
+        {
+          "name": "Check API Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ]
+            },
+            "description": "### GET /api/health\n\nVerifies that the DepShield backend service is online, operational, and responsive.\n\n#### Responses:\n- : "
+          },
+          "response": [
+            {
+              "name": "200 OK - Health Status",
+              "originalRequest": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/api/health",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "health"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"status\": \"ok\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Package Discovery & Graphs",
+      "item": [
+        {
+          "name": "Search Package Dependency Graph",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-NVD-API-Key",
+                "value": "{{nvdApiKey}}",
+                "type": "text",
+                "description": "Optional NIST NVD API key"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/search?name=lodash&version=4.17.20&ecosystem=npm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "name",
+                  "value": "lodash",
+                  "description": "Package name (required)"
+                },
+                {
+                  "key": "version",
+                  "value": "4.17.20",
+                  "description": "Package version (optional, defaults to latest)"
+                },
+                {
+                  "key": "ecosystem",
+                  "value": "npm",
+                  "description": "Target ecosystem: PyPI or npm (default: PyPI)"
+                }
+              ]
+            },
+            "description": "### GET /api/search\n\nSearches for a specific package and builds a force-directed graph representation of its direct and transitive dependencies, including vulnerability statuses, release ages, and latest registry versions.\n\n#### Query Parameters:\n-  *(Required)*: Name of package (e.g. , ).\n-  *(Optional)*: Exact version string. If omitted, queries latest release.\n-  *(Optional)*: Target package registry ( or ). Default: ."
+          },
+          "response": [
+            {
+              "name": "200 OK - Graph Node Tree",
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"nodes\": [\n    {\n      \"id\": \"lodash@4.17.20\",\n      \"name\": \"lodash\",\n      \"version\": \"4.17.20\",\n      \"ecosystem\": \"npm\",\n      \"vulnerable\": true,\n      \"vulnerabilities\": [\n        {\n          \"id\": \"GHSA-35jh-r3h4-6jhm\",\n          \"aliases\": [\n            \"CVE-2021-23337\"\n          ],\n          \"summary\": \"Command Injection in lodash\",\n          \"severity\": \"HIGH\",\n          \"cvss_score\": 7.3\n        }\n      ],\n      \"is_outdated\": true,\n      \"latest_version\": \"4.17.21\"\n    }\n  ],\n  \"links\": []\n}"
+            }
+          ]
+        },
+        {
+          "name": "Upload Manifest (Graph Representation)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "text/plain"
+              },
+              {
+                "key": "X-File-Name",
+                "value": "requirements.txt",
+                "description": "Manifest filename (e.g. requirements.txt, package.json)"
+              },
+              {
+                "key": "X-NVD-API-Key",
+                "value": "{{nvdApiKey}}",
+                "description": "Optional NIST NVD API key"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "requests==2.25.1\nurllib3==1.26.4\n"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "upload"
+              ]
+            },
+            "description": "### POST /api/upload\n\nUploads raw manifest content and returns a D3 force-directed dependency graph data structure ( and ).\n\n#### Required Headers:\n- : Defines the parser format (, , )."
+          },
+          "response": [
+            {
+              "name": "200 OK - Manifest Graph",
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"nodes\": [\n    {\n      \"id\": \"urllib3@1.26.4\",\n      \"name\": \"urllib3\",\n      \"version\": \"1.26.4\"\n    }\n  ],\n  \"links\": []\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Vulnerability Audits",
+      "item": [
+        {
+          "name": "Batch Package Audit (JSON)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-NVD-API-Key",
+                "value": "{{nvdApiKey}}",
+                "description": "Optional NIST NVD API key"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"packages\": [\n    {\n      \"name\": \"lodash\",\n      \"version\": \"4.17.20\",\n      \"ecosystem\": \"npm\"\n    },\n    {\n      \"name\": \"urllib3\",\n      \"version\": \"1.26.4\",\n      \"ecosystem\": \"PyPI\"\n    }\n  ],\n  \"max_depth\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/audit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "audit"
+              ]
+            },
+            "description": "### POST /api/v1/audit\n\nAudits an explicit list of packages across npm and PyPI. Returns a flat bill-of-materials summary report including risk level, vulnerability count, publication age, and latest version comparisons.\n\n#### Request Body Schema:\n- : Array of objects with  (required),  (optional), and  ( | ).\n- : Maximum transitive dependency traversal depth (default: 3)."
+          },
+          "response": [
+            {
+              "name": "200 OK - Audit Report",
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"risk_level\": \"HIGH\",\n  \"vulnerabilities_count\": 1,\n  \"packages_count\": 2,\n  \"packages\": [\n    {\n      \"name\": \"lodash\",\n      \"version\": \"4.17.20\",\n      \"ecosystem\": \"npm\",\n      \"vulnerable\": true,\n      \"vulnerabilities\": [\n        {\n          \"id\": \"CVE-2021-23337\",\n          \"severity\": \"HIGH\"\n        }\n      ],\n      \"is_outdated\": true,\n      \"latest_version\": \"4.17.21\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Audit Raw Manifest File",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "text/plain"
+              },
+              {
+                "key": "X-File-Name",
+                "value": "requirements.txt",
+                "description": "Manifest filename (e.g. requirements.txt or package.json)"
+              },
+              {
+                "key": "X-NVD-API-Key",
+                "value": "{{nvdApiKey}}",
+                "description": "Optional NIST NVD API key"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "requests==2.25.1\nflask==1.1.2\n"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/audit/manifest",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "audit",
+                "manifest"
+              ]
+            },
+            "description": "### POST /api/v1/audit/manifest\n\nSubmits a raw package manifest body and produces a structured flat JSON audit report.\n\n#### Required Headers:\n- : Manifest filename format (, , )."
+          },
+          "response": [
+            {
+              "name": "200 OK - Manifest Audit Result",
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"risk_level\": \"LOW\",\n  \"vulnerabilities_count\": 0,\n  \"packages_count\": 2\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "AI Explanations & Upgrade Advisors",
+      "item": [
+        {
+          "name": "Analyze Version Upgrade (Gemini AI)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Gemini-API-Key",
+                "value": "{{geminiApiKey}}",
+                "description": "Required Google Gemini API Key"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"package_name\": \"minimatch\",\n  \"resolved_version\": \"3.0.0\",\n  \"latest_version\": \"10.2.5\",\n  \"ecosystem\": \"npm\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analyze-upgrade",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analyze-upgrade"
+              ]
+            },
+            "description": "### POST /api/v1/analyze-upgrade\n\nInvokes Google Gemini AI to analyze breaking changes, semver deprecation hazards, and a step-by-step migration plan when upgrading a package from its resolved version to latest release.\n\n#### Required Headers:\n- : Valid Google AI Studio API key.\n\n#### Request Body:\n- : Name of package.\n- : Current installed version.\n- : Target upgrade version.\n- :  or ."
+          },
+          "response": [
+            {
+              "name": "200 OK - Upgrade Analysis",
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"analysis\": \"### Upgrade Assessment for minimatch\\n\\n**Risk Level:** HIGH\\n\\n- Version 10 drops legacy Node.js support\\n- Migrated from CommonJS to ESM\\n- Remediation: Review all glob matching calls before merging.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Explain Vulnerability (Gemini AI)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Gemini-API-Key",
+                "value": "{{geminiApiKey}}",
+                "description": "Required Google Gemini API Key"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vuln_id\": \"CVE-2021-23337\",\n  \"summary\": \"Command Injection in lodash via template function\",\n  \"details\": \"The package lodash prior to 4.17.21 is vulnerable to Command Injection via template.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/explain-vulnerability",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "explain-vulnerability"
+              ]
+            },
+            "description": "### POST /api/explain-vulnerability\n\nSynthesizes an executive explanation and engineering mitigation guide for a specific CVE advisory using Gemini AI.\n\n#### Required Headers:\n- : Valid Google AI Studio API key."
+          },
+          "response": [
+            {
+              "name": "200 OK - Vulnerability Explanation",
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"explanation\": \"### CVE-2021-23337 Analysis\\n\\nThis vulnerability permits arbitrary command execution if untrusted input is supplied to the lodash template engine.\\n\\n**Action Item:** Bump lodash to version 4.17.21 or higher.\"\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
