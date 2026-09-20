@@ -7,6 +7,7 @@ import urllib.parse
 from parsers import ManifestParser
 from checker import DependencyChecker
 from web_server import build_flat_report
+from checker.credentials import get_gemini_auth
 
 # ==============================================================================
 # SECTION 1: MCP JSON-RPC PROTOCOL HANDLERS
@@ -22,7 +23,14 @@ def handle_analyze_upgrade(args):
     resolved_ver = args.get("resolved_version") or args.get("version", "N/A")
     latest_ver = args.get("latest_version", "N/A")
     ecosystem = args.get("ecosystem", "PyPI")
+    google_token = args.get("google_access_token") or os.environ.get("GOOGLE_ACCESS_TOKEN")
     gemini_key = args.get("gemini_api_key") or os.environ.get("GEMINI_API_KEY")
+    if not google_token and not gemini_key:
+        auth_type, auth_val = get_gemini_auth()
+        if auth_type == "token":
+            google_token = auth_val
+        elif auth_type == "key":
+            gemini_key = auth_val
 
     if not pkg_name:
         return {
@@ -30,9 +38,15 @@ def handle_analyze_upgrade(args):
             "content": [{"type": "text", "text": "Error: 'package_name' argument is required."}]
         }
 
-    # If Gemini API Key is provided, use Google Generative AI REST endpoint
-    if gemini_key:
-        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+    # If Google Login token or Gemini API Key is provided, use Gemini 2.5 Flash
+    if google_token or gemini_key:
+        if google_token:
+            gemini_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+            headers = {'Content-Type': 'application/json', 'Authorization': f'Bearer {google_token}'}
+        else:
+            gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}"
+            headers = {'Content-Type': 'application/json'}
+
         prompt = (
             f"Analyze the breaking changes, risk level, and mitigation steps when upgrading "
             f"the {ecosystem} package '{pkg_name}' from version '{resolved_ver}' to the latest version '{latest_ver}'.\n\n"
@@ -51,7 +65,7 @@ def handle_analyze_upgrade(args):
             req = urllib.request.Request(
                 gemini_url,
                 data=req_data,
-                headers={'Content-Type': 'application/json'},
+                headers=headers,
                 method='POST'
             )
             with urllib.request.urlopen(req, timeout=15) as response:

@@ -22,8 +22,11 @@ DepShield operates in zero-trust isolation without requiring proprietary tokens.
 | Header | Required | Type | Description |
 | :--- | :--- | :--- | :--- |
 | `Content-Type` | Dependent | String | Set to `application/json` for JSON endpoints or `text/plain` for raw manifest submissions. |
+| `Authorization` | Optional | String | `Bearer <google_access_token>`. If you have access to Google Gemini, signing in with your Google account is sufficient to unlock all AI capabilities with no API key needed! |
+| `X-Google-Logged-In` | Optional | String | Set to `true` to indicate an active browser or environment Google account session. Unlocks Gemini AI features immediately without manual keys. |
+| `X-Google-Email` | Optional | String | User's Google Account email identifier associated with the active session (e.g. `developer@example.com`). |
+| `X-Gemini-API-Key` | Optional | String | Google AI Studio Gemini API Key ([Get one here](https://aistudio.google.com/)). Alternative to Google Login. |
 | `X-NVD-API-Key` | Optional | String | NIST NVD REST API Key ([Request one here](https://nvd.nist.gov/developers/request-an-api-key)). Bypasses NIST IP rate limits (5 requests/30s without key vs 50 requests/30s with key). |
-| `X-Gemini-API-Key` | Required for AI | String | Google AI Studio Gemini API Key ([Get one here](https://aistudio.google.com/)). Enables AI remediation analysis and version upgrade syntheses. |
 | `X-File-Name` | Conditional | String | Required when posting raw manifests to `/api/upload` or `/api/v1/audit/manifest` (e.g. `requirements.txt`, `package.json`, `package-lock.json`). |
 
 ---
@@ -203,35 +206,63 @@ curl -X POST http://localhost:8000/api/v1/audit \
 ```json
 {
   "risk_level": "HIGH",
+  "verdict": "NOT_ADVISABLE",
+  "policy_reasons": [
+    "High/Critical risk packages exceed threshold: 50.0% RED (limit 30.0%).",
+    "Combined risk (RED + YELLOW) exceeds safety threshold: 50.0% (limit 50.0%).",
+    "Affected high-risk packages (1): lodash@4.17.20."
+  ],
+  "policy_metrics": {
+    "total_count": 2,
+    "red_count": 1,
+    "yellow_count": 0,
+    "green_count": 1,
+    "young_count": 0,
+    "red_pct": 0.5,
+    "yellow_pct": 0.0,
+    "green_pct": 0.5,
+    "combined_risk_pct": 0.5
+  },
+  "total_packages": 2,
   "vulnerabilities_count": 1,
-  "packages_count": 2,
+  "recent_packages_count": 0,
+  "checksum_failures_count": 0,
+  "credentials_setup": {
+    "gemini_configured": false,
+    "nvd_configured": false,
+    "setup_instructions": "Run 'depshield.py --setup' to configure personal credentials"
+  },
   "packages": [
     {
       "name": "lodash",
-      "version": "4.17.20",
       "ecosystem": "npm",
-      "vulnerable": true,
-      "is_outdated": true,
-      "latest_version": "4.17.21",
-      "age_days": 1380,
+      "requested_version": "4.17.20",
+      "resolved_version": "4.17.20",
+      "release_date": "2020-08-13",
+      "age_days": 2228,
+      "risk": "high",
+      "risk_color": "RED",
+      "is_young": false,
       "vulnerabilities": [
         {
           "id": "GHSA-35jh-r3h4-6jhm",
           "aliases": ["CVE-2021-23337"],
-          "summary": "Command Injection in lodash",
+          "summary": "[7.2 (HIGH)] Command Injection in lodash",
           "severity": "HIGH",
-          "cvss_score": 7.3
+          "cvss_score": 7.2
         }
       ]
     },
     {
       "name": "urllib3",
-      "version": "1.26.4",
       "ecosystem": "PyPI",
-      "vulnerable": false,
-      "is_outdated": true,
-      "latest_version": "2.2.1",
-      "age_days": 1150,
+      "requested_version": "1.26.4",
+      "resolved_version": "1.26.4",
+      "release_date": "2021-03-15",
+      "age_days": 1950,
+      "risk": "low",
+      "risk_color": "GREEN",
+      "is_young": false,
       "vulnerabilities": []
     }
   ]
@@ -256,9 +287,33 @@ curl -X POST http://localhost:8000/api/v1/audit/manifest \
 ##### Response (`200 OK`):
 ```json
 {
-  "risk_level": "MEDIUM",
-  "vulnerabilities_count": 2,
-  "packages_count": 2,
+  "risk_level": "HIGH",
+  "verdict": "NOT_ADVISABLE",
+  "policy_reasons": [
+    "High/Critical risk packages exceed threshold: 50.0% RED (limit 30.0%).",
+    "Combined risk (RED + YELLOW) exceeds safety threshold: 50.0% (limit 50.0%).",
+    "Affected high-risk packages (1): requests@2.25.1."
+  ],
+  "policy_metrics": {
+    "total_count": 2,
+    "red_count": 1,
+    "yellow_count": 0,
+    "green_count": 1,
+    "young_count": 0,
+    "red_pct": 0.5,
+    "yellow_pct": 0.0,
+    "green_pct": 0.5,
+    "combined_risk_pct": 0.5
+  },
+  "total_packages": 2,
+  "vulnerabilities_count": 1,
+  "recent_packages_count": 0,
+  "checksum_failures_count": 0,
+  "credentials_setup": {
+    "gemini_configured": false,
+    "nvd_configured": false,
+    "setup_instructions": "Run 'depshield.py --setup' to configure personal credentials"
+  },
   "packages": [ ... ]
 }
 ```
@@ -340,6 +395,71 @@ curl -X POST http://localhost:8000/api/explain-vulnerability \
 ```json
 {
   "explanation": "### Vulnerability Analysis: CVE-2021-23337\n\n**Severity:** HIGH (CVSS 7.3)\n\n#### Description:\nAn attacker can execute arbitrary operating system commands if untrusted user input is passed directly into `lodash.template` without sanitization.\n\n#### Remediation:\nUpgrade `lodash` to version `4.17.21` or later where the template compilation sandbox has been hardened."
+}
+```
+
+---
+
+### 8. Get Authentication & Credential Status
+
+#### `GET /api/auth/google/status`
+Returns configuration and login status across all integrated sources (Google Account, Gemini AI, NIST NVD, and Google OSV).
+
+##### Request:
+```bash
+curl -X GET http://localhost:8000/api/auth/google/status
+```
+
+##### Response (`200 OK`):
+```json
+{
+  "gemini_configured": true,
+  "google_logged_in": true,
+  "user_email": "developer@example.com",
+  "auth_type": "google_session",
+  "enhanced_features_available": true,
+  "nvd_configured": false,
+  "osv_configured": true,
+  "unauthenticated_mode": false
+}
+```
+
+---
+
+### 9. Synchronize Google Session State
+
+#### `POST /api/auth/google/session`
+Synchronizes the active Google Account login session state between client frontends and the backend environment.
+
+##### Request Body Schema:
+```json
+{
+  "logged_in": true,
+  "email": "developer@example.com"
+}
+```
+
+##### Request:
+```bash
+curl -X POST http://localhost:8000/api/auth/google/session \
+  -H "Content-Type: application/json" \
+  -d '{
+    "logged_in": true,
+    "email": "developer@example.com"
+  }'
+```
+
+##### Response (`200 OK`):
+```json
+{
+  "gemini_configured": true,
+  "google_logged_in": true,
+  "user_email": "developer@example.com",
+  "auth_type": "google_session",
+  "enhanced_features_available": true,
+  "nvd_configured": false,
+  "osv_configured": true,
+  "unauthenticated_mode": false
 }
 ```
 

@@ -9,14 +9,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
 # Create persistent storage directories
 RUN mkdir -p /app/logs /app/reports /app/data
 
-# Copy application core modules
+# Copy application core modules and checker package
 COPY checker.py depshield.py parsers.py registry_client.py reporter.py web_server.py mcp_server.py /app/
+COPY checker/ /app/checker/
 
 # Copy static web assets
 COPY web/ /app/web/
 
 # Copy sample packages and test manifests
 COPY test_depshield.py test_package.json test_requirements.txt lodash-4.17.21.tgz /app/
+COPY tests/ /app/tests/
 
 # Ensure scripts are executable
 RUN chmod +x /app/depshield.py /app/mcp_server.py

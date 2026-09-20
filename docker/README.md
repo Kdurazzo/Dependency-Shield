@@ -120,6 +120,22 @@ docker compose run --rm depshield-cli /workspace/test_requirements.txt -o /app/r
 ```
 Generated reports will immediately appear in your host's `docker/reports/` directory.
 
+Generated reports will immediately appear in your host's `docker/reports/` directory.
+
+Run in automated agent execution mode:
+```bash
+docker compose run --rm depshield-cli /workspace/test_requirements.txt --agent
+```
+
+Synthesize a Gemini 2.5 Flash Markdown report (via Google session or API key):
+```bash
+# Using Google Account session activation:
+docker compose run --rm -e GOOGLE_LOGGED_IN=true depshield-cli /workspace/test_requirements.txt --report -o /app/reports
+
+# Or using an explicit Gemini API key:
+docker compose run --rm -e GEMINI_API_KEY="your-key" depshield-cli /workspace/test_requirements.txt --report -o /app/reports
+```
+
 ### Run the MCP Service
 Start the persistent MCP container for agent integration:
 ```bash

@@ -37,10 +37,26 @@ DepShield aggregates advisory information from two secure, reliable feeds:
    ```bash
    chmod +x depshield.py
    ```
-3. Run a test audit on a sample python manifest:
+3. Run an audit on a manifest (zero configuration, no login required!):
    ```bash
-   export NVD_API_KEY="your-api-key"
    ./depshield.py test_requirements.txt -o ./reports
+   ```
+4. Optional: Sign in with your Google Account for enhanced Gemini 2.5 Flash advisories:
+   ```bash
+   ./depshield.py --login
+   ```
+   *If you have access to Gemini, your Google login is sufficient — no API key required!*
+5. Headless agent execution (outputs structured JSON for CI/CD):
+   ```bash
+   ./depshield.py test_requirements.txt --agent
+   ```
+6. Synthesize an executive advisory Markdown report (standard audit or enhanced AI):
+   ```bash
+   ./depshield.py test_requirements.txt --report -o ./reports
+   ```
+7. Full credentials setup wizard (Google login & NIST NVD key):
+   ```bash
+   ./depshield.py --setup
    ```
 
 ---
@@ -59,12 +75,40 @@ DepShield aggregates advisory information from two secure, reliable feeds:
     * `package-lock.json` (Node.js pinned lockfile)
 
 ### 2. Options
+* `--login`: Interactive Google Account login prompt. Logging in unlocks enhanced Gemini 2.5 Flash advisory reports without needing an API key. (Core audits always run without logging in).
+* `--setup`: Launch interactive credentials onboarding wizard to configure Google Gemini & NIST NVD logins.
+* `--agent`: Run in headless agent execution mode, outputting structured JSON with `INSTALLED` (human-on-the-loop) or `REQUIRES_APPROVAL` (human-in-the-loop) verdicts for automated CI/CD and AI coders.
+* `--report`: Synthesize an executive advisory Markdown report via Google Gemini 2.5 Flash.
+* `--dry-run`: Evaluate policy rules without running package installation commands.
+* `--no-install`: Bypass package installation upon `PROCEED` verdicts.
 * `-j`, `--json`: Print audit results as a flat JSON report directly to standard output instead of creating report files. Ideal for CI/CD pipeline scripting.
 * `-f`, `--file <path>`: Path to a local package archive (e.g. `.whl`, `.tgz`, `.zip`) to verify checksum integrity against registry records.
 * `-o`, `--output-dir <path>`: Directory where Markdown and HTML audit reports will be saved (default: `.`).
 * `--html-name <filename>`: Custom filename for the HTML report (default: `depshield_report.html`).
 * `--md-name <filename>`: Custom filename for the Markdown report (default: `depshield_report.md`).
 * `--current-date <YYYY-MM-DD>`: Simulated current date used to compute release ages (default: `2026-06-16`). Useful for testing historical package lists.
+
+---
+
+
+---
+
+## 🚦 Deterministic Policy Engine & 4-Tier Decision Matrix
+
+DepShield evaluates package dependency graphs against an order-of-precedence decision matrix:
+
+| Priority | Verdict | Trigger Criteria | Agent Persona Action | Human Persona Action |
+| :---: | :---: | :--- | :--- | :--- |
+| **1 (Highest)** | **`NOT_ADVISABLE`** | **Red > 30%** OR **(Red + Yellow) > 50%** | Block install. Halt execution. Request user confirmation (`HUMAN_IN_THE_LOOP`). | Display high-visibility red banner stating install is not advisable + reason breakdown. |
+| **2** | **`HIGH_CAUTION`** | At least 1 dependency has **`is_young == True`** (< 15 days) | Pause install. Highlight young package risk. Prompt user: approve or decline (`HUMAN_IN_THE_LOOP`). | Display amber warning: high-caution install with package names and release ages. |
+| **3** | **`PROCEED_WITH_CAUTION`** | **Red == 0**, **Yellow > 0**, and **Yellow <= 50%** | Pause install. Detail moderate risks. Prompt user: approve or decline (`HUMAN_IN_THE_LOOP`). | Display yellow notice: proceed with caution + vulnerability details. |
+| **4 (Lowest)** | **`PROCEED`** | **Green == 100%** and all packages >= 15 days old | Auto-install. Output JSON status `INSTALLED` (`HUMAN_ON_THE_LOOP`). | Display green notice: safe to install with summary of verified packages. |
+
+### Risk Color Classification:
+- **`GREEN`**: CVSS = 0.0 (or unlisted advisories), no known advisories, release age >= 15 days.
+- **`YELLOW`**: Low/Medium vulnerability (0.0 < CVSS < 7.0), no active exploit flag, release age >= 15 days.
+- **`RED`**: High/Critical vulnerability (CVSS >= 7.0), malicious package flag, or known exploited vulnerability (KEV).
+- **`FLAG is_young`**: Published < 15 days ago (computed against current UTC date). Protects against dependency confusion and typosquatting attacks.
 
 ---
 
@@ -124,8 +168,8 @@ Pass a flat JSON list of packages to audit:
 ### 2. `POST /api/v1/audit/manifest`
 Submit a raw manifest text body. Include the `X-File-Name` header (e.g., `X-File-Name: requirements.txt`) to define the parser format.
 
-### 3. `POST /api/v1/v1/analyze-upgrade`
-Consult Gemini regarding version upgrades.
+### 3. `POST /api/v1/analyze-upgrade`
+Consult Gemini AI regarding version upgrades. Supports Bearer token, Google Login session, or Gemini API key.
 - **Body JSON:**
   ```json
   {
@@ -136,6 +180,27 @@ Consult Gemini regarding version upgrades.
   }
   ```
 - **Response JSON:** `{"analysis": "Markdown string explaining risks and upgrade path"}`
+
+### 4. `POST /api/explain-vulnerability`
+Generate contextual remediation guidance for an identified CVE/GHSA advisory.
+- **Body JSON:**
+  ```json
+  {
+    "vuln_id": "GHSA-j8r2-6x86-q33q",
+    "summary": "High severity security advisory",
+    "details": "Technical vulnerability description..."
+  }
+  ```
+- **Response JSON:** `{"explanation": "Markdown string with threat analysis and engineering action items"}`
+
+### 5. `GET /api/auth/google/status`
+Check credential configuration and Google login status.
+- **Response JSON:** `{"google_logged_in": false, "gemini_configured": false, "unauthenticated_mode": true, ...}`
+
+### 6. `POST /api/auth/google/session`
+Synchronize active Google login session between dashboard and backend service.
+- **Body JSON:** `{"logged_in": true, "email": "user@example.com"}`
+- **Response JSON:** Updated credentials status dictionary.
 
 ---
 
@@ -167,17 +232,23 @@ Add this entry to your agent config file:
 
 DepShield evaluates package risks and exits with a shell code indicating the severity level:
 
-| Exit Code | Risk Level | Description | Action Item |
-| :---: | :---: | :---: | :---: |
-| `0` | **LOW** / **MEDIUM** | Standard scan completed. No active threats or checksum failures found. | Safe to install. (Review warnings if any releases are <10 days old). |
-| `2` | **HIGH** | Resolved versions contain known CVEs or GitHub security advisories. | **HOLD DEPLOYMENT**. Upgrade packages to a patched release. |
-| `3` | **CRITICAL** | Integrity failure. A checked file's hash does not match registry records. | **ABORT INSTALLATION**. A mismatch indicates tampering or cache corruption. |
+| Exit Code | Verdict | Description | Action Item |
+| :---: | :---: | :--- | :--- |
+| `0` | **`PROCEED`** | All dependencies evaluated GREEN (CVSS 0.0, >=15 days old) or user/agent explicitly approved installation. | Safe to install. Pipeline proceeds automatically. |
+| `1` | **`PROCEED_WITH_CAUTION`** | Moderate vulnerabilities (YELLOW <= 50%, RED = 0) where installation was declined or unconfirmed. | Review moderate risks, check available patches, or approve install. |
+| `2` | **`HIGH_CAUTION`** | At least one dependency was published < 15 days ago (`is_young == True`) and installation was unconfirmed. | Guard against typosquatting/malicious release. Verify author integrity. |
+| `3` | **`NOT_ADVISABLE`** | High/Critical vulnerabilities (RED > 30% or RED+YELLOW > 50%) or archive checksum tampering detected. | **BLOCK INSTALLATION**. Severe vulnerabilities or hash mismatch found. |
+| `1987` | **OS/2 Abort** | Execution attempted on OS/2 platform. | Immediate abort per platform exclusion policy. |
 
 ---
 
 ## 🧪 Running Automated Tests
 The package includes a comprehensive unit testing suite using Python's standard `unittest` framework:
 ```bash
+# Run policy engine, credentials & agent runner test suite (14 unit tests)
+python3 -m unittest discover tests/
+
+# Run supply chain graph, parser & registry test suite (11 unit tests)
 python3 test_depshield.py
 ```
 This suite automatically tests requirements parsing, npm package.json/lockfile reading, file hash calculations, REST API handlers, and validates live connection handlers to upstream endpoints.

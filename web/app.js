@@ -594,7 +594,23 @@ function showDetails(node) {
                 `;
             })
             .catch(err => {
-                explanationArea.innerHTML = `<span class="text-danger">Error: ${err.message}</span>`;
+                let actionHtml = '';
+                if (err.message.includes('Google Login') || err.message.includes('Gemini API Key') || err.message.includes('missing')) {
+                    actionHtml = `
+                        <div style="margin-top: 0.5rem;">
+                            <button class="btn btn-secondary btn-inline-auth" style="padding: 0.25rem 0.6rem; font-size: 0.72rem; color: #4ade80; border-color: rgba(74, 222, 128, 0.4);">
+                                🔑 Sign in with Google (Activate AI)
+                            </button>
+                        </div>
+                    `;
+                }
+                explanationArea.innerHTML = `<span class="text-danger">Error: ${err.message}</span>${actionHtml}`;
+                const inlineAuthBtn = explanationArea.querySelector('.btn-inline-auth');
+                if (inlineAuthBtn) {
+                    inlineAuthBtn.addEventListener('click', () => {
+                        handleGoogleLoginPrompt();
+                    });
+                }
                 btn.disabled = false;
             });
         });
@@ -654,7 +670,23 @@ function showDetails(node) {
                 `;
             })
             .catch(err => {
-                upgradeArea.innerHTML = `<span class="text-danger">Error: ${err.message}</span>`;
+                let actionHtml = '';
+                if (err.message.includes('Google Login') || err.message.includes('Gemini API Key') || err.message.includes('missing')) {
+                    actionHtml = `
+                        <div style="margin-top: 0.5rem;">
+                            <button class="btn btn-secondary btn-inline-auth-up" style="padding: 0.25rem 0.6rem; font-size: 0.72rem; color: #4ade80; border-color: rgba(74, 222, 128, 0.4);">
+                                🔑 Sign in with Google (Activate AI)
+                            </button>
+                        </div>
+                    `;
+                }
+                upgradeArea.innerHTML = `<span class="text-danger">Error: ${err.message}</span>${actionHtml}`;
+                const inlineAuthBtn = upgradeArea.querySelector('.btn-inline-auth-up');
+                if (inlineAuthBtn) {
+                    inlineAuthBtn.addEventListener('click', () => {
+                        handleGoogleLoginPrompt();
+                    });
+                }
                 btn.disabled = false;
             });
         });
@@ -662,15 +694,103 @@ function showDetails(node) {
 }
 
 // ==============================================================================
-// CONFIGURATION & API KEY SETUP
+// CONFIGURATION, GOOGLE LOGIN & API KEY SETUP
 // ==============================================================================
 function getAuthHeaders() {
     const headers = {};
     const nvdKey = localStorage.getItem('depshield_nvd_key');
     const geminiKey = localStorage.getItem('depshield_gemini_key');
+    const googleToken = localStorage.getItem('depshield_google_token');
+    const googleLoggedIn = localStorage.getItem('depshield_google_logged_in');
+    const userEmail = localStorage.getItem('depshield_user_email');
+
     if (nvdKey) headers['X-NVD-API-Key'] = nvdKey;
-    if (geminiKey) headers['X-Gemini-API-Key'] = geminiKey;
+    if (googleToken) {
+        headers['Authorization'] = `Bearer ${googleToken}`;
+    } else if (geminiKey) {
+        headers['X-Gemini-API-Key'] = geminiKey;
+    }
+    if (googleLoggedIn === 'true') {
+        headers['X-Google-Logged-In'] = 'true';
+        if (userEmail) headers['X-Google-Email'] = userEmail;
+    }
     return headers;
+}
+
+function updateGoogleAuthUI() {
+    const googleToken = localStorage.getItem('depshield_google_token');
+    const geminiKey = localStorage.getItem('depshield_gemini_key');
+    const googleLoggedIn = localStorage.getItem('depshield_google_logged_in') === 'true';
+    const userEmail = localStorage.getItem('depshield_user_email') || '';
+    const btnHeader = document.getElementById('btn-google-header');
+    const headerText = document.getElementById('google-header-text');
+    const modalStatus = document.getElementById('settings-google-status');
+    const btnModalLoginText = document.getElementById('btn-google-modal-login-text');
+    const btnSignout = document.getElementById('btn-google-signout');
+
+    if (googleToken || geminiKey || googleLoggedIn) {
+        if (btnHeader) btnHeader.classList.add('connected');
+        if (headerText) headerText.textContent = userEmail ? `● Google (${userEmail.split('@')[0]})` : '● Google Connected';
+        if (modalStatus) {
+            modalStatus.textContent = 'Connected (Enhanced AI Active)';
+            modalStatus.style.background = 'rgba(52, 168, 83, 0.2)';
+            modalStatus.style.color = '#4ade80';
+        }
+        if (btnModalLoginText) btnModalLoginText.textContent = 'Switch Account';
+        if (btnSignout) btnSignout.classList.remove('hidden');
+    } else {
+        if (btnHeader) btnHeader.classList.remove('connected');
+        if (headerText) headerText.textContent = 'Sign in with Google';
+        if (modalStatus) {
+            modalStatus.textContent = 'Standard Mode';
+            modalStatus.style.background = 'rgba(0, 210, 255, 0.1)';
+            modalStatus.style.color = 'var(--accent-cyan)';
+        }
+        if (btnModalLoginText) btnModalLoginText.textContent = 'Sign in with Google';
+        if (btnSignout) btnSignout.classList.add('hidden');
+    }
+}
+
+function handleGoogleLoginPrompt() {
+    const isAlreadyLoggedIn = localStorage.getItem('depshield_google_logged_in') === 'true';
+    const currentEmail = localStorage.getItem('depshield_user_email') || '';
+
+    const choice = confirm(
+        "Google Account Login (Enhanced Gemini Advisories)\n\n" +
+        "DepShield core audits run 100% without logging in.\n\n" +
+        "If you are ALREADY logged into Google in your browser:\n" +
+        "• Click OK to activate enhanced Gemini features immediately!\n\n" +
+        "Or click Cancel if you want to enter a specific Google Token / API key instead."
+    );
+
+    if (choice) {
+        let email = prompt("Enter your Google Account email (optional, or press OK to use active session):", currentEmail);
+        if (email === null) return;
+        email = email.trim();
+        localStorage.setItem('depshield_google_logged_in', 'true');
+        if (email) localStorage.setItem('depshield_user_email', email);
+        updateGoogleAuthUI();
+        fetch('/api/auth/google/session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ logged_in: true, email: email })
+        }).catch(() => {});
+        alert('✔ Activated Google Account session! Enhanced Gemini advisories and reports are now active.');
+        return;
+    }
+
+    const keyOrToken = prompt("Paste your Google Gemini API Key or OAuth Token (ya29...):");
+    if (keyOrToken && keyOrToken.trim()) {
+        const val = keyOrToken.trim();
+        if (val.startsWith('ya29.')) {
+            localStorage.setItem('depshield_google_token', val);
+        } else {
+            localStorage.setItem('depshield_gemini_key', val);
+        }
+        localStorage.setItem('depshield_google_logged_in', 'true');
+        updateGoogleAuthUI();
+        alert('✔ Saved credentials! Enhanced Gemini advisories are now active.');
+    }
 }
 
 function setupSettingsModal() {
@@ -678,13 +798,72 @@ function setupSettingsModal() {
     const btnOpen = document.getElementById('btn-settings');
     const btnClose = document.getElementById('btn-close-settings');
     const btnSave = document.getElementById('btn-save-settings');
-    
+    const btnHeaderGoogle = document.getElementById('btn-google-header');
+    const btnModalGoogle = document.getElementById('btn-google-modal-login');
+    const btnSignoutGoogle = document.getElementById('btn-google-signout');
+
     const inputNvd = document.getElementById('settings-nvd-key');
     const inputGemini = document.getElementById('settings-gemini-key');
     
     // Load saved values
     inputNvd.value = localStorage.getItem('depshield_nvd_key') || '';
     inputGemini.value = localStorage.getItem('depshield_gemini_key') || '';
+    updateGoogleAuthUI();
+
+    // Sync client session to server if previously logged in
+    if (localStorage.getItem('depshield_google_logged_in') === 'true') {
+        fetch('/api/auth/google/session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                logged_in: true, 
+                email: localStorage.getItem('depshield_user_email') || '' 
+            })
+        }).catch(() => {});
+    }
+
+    // Check server-side Google login status
+    fetch('/api/auth/google/status')
+        .then(r => r.json())
+        .then(data => {
+            if (data.google_logged_in) {
+                localStorage.setItem('depshield_google_logged_in', 'true');
+                if (data.user_email) localStorage.setItem('depshield_user_email', data.user_email);
+                updateGoogleAuthUI();
+            }
+        })
+        .catch(() => {});
+
+    if (btnHeaderGoogle) {
+        btnHeaderGoogle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            handleGoogleLoginPrompt();
+        });
+    }
+
+    if (btnModalGoogle) {
+        btnModalGoogle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            handleGoogleLoginPrompt();
+        });
+    }
+
+    if (btnSignoutGoogle) {
+        btnSignoutGoogle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            localStorage.removeItem('depshield_google_token');
+            localStorage.removeItem('depshield_gemini_key');
+            localStorage.removeItem('depshield_google_logged_in');
+            localStorage.removeItem('depshield_user_email');
+            fetch('/api/auth/google/session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ logged_in: false })
+            }).catch(() => {});
+            updateGoogleAuthUI();
+            alert('Signed out. Core auditing remains 100% active in unauthenticated mode.');
+        });
+    }
     
     btnOpen.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -705,7 +884,7 @@ function setupSettingsModal() {
         localStorage.setItem('depshield_nvd_key', inputNvd.value.trim());
         localStorage.setItem('depshield_gemini_key', inputGemini.value.trim());
         modal.classList.add('hidden');
-        alert('API keys saved successfully!');
+        alert('Settings saved successfully!');
     });
 }
 

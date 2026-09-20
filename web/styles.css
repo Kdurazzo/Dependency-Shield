@@ -854,3 +854,26 @@ input:focus, select:focus {
     70% { box-shadow: 0 0 0 8px rgba(244, 63, 94, 0); }
     100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
 }
+
+/* Google Login Header & Modal Controls */
+.btn-google-header {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border-glass);
+    color: var(--text-light);
+    font-size: 0.75rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+.btn-google-header:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+.btn-google-header.connected {
+    background: rgba(52, 168, 83, 0.15);
+    border-color: rgba(52, 168, 83, 0.4);
+    color: #4ade80;
+}

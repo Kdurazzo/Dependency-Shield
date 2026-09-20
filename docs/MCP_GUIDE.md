@@ -82,6 +82,45 @@ When updating legacy projects or resolving deprecation warnings:
 
 ---
 
+## 🚦 Interpreting Policy Verdicts & Credentials Status in Agent Calls
+
+Every response from `audit_manifest` and `audit_package` returns a structured top-level policy verdict and credential onboarding status:
+
+```json
+{
+  "verdict": "NOT_ADVISABLE",
+  "policy_reasons": [
+    "Combined risk (RED + YELLOW) exceeds safety threshold: 100.0% (limit 50.0%)."
+  ],
+  "policy_metrics": {
+    "red_pct": 0.5,
+    "yellow_pct": 0.0,
+    "green_pct": 0.5,
+    "young_count": 0
+  },
+  "credentials_setup": {
+    "gemini_configured": false,
+    "nvd_configured": false,
+    "setup_instructions": "Run 'depshield.py --setup' to configure credentials"
+  },
+  "packages": [
+    {
+      "name": "lodash",
+      "risk_color": "RED",
+      "is_young": false,
+      "vulnerabilities": [...]
+    }
+  ]
+}
+```
+
+### Agent Decision Logic:
+- **If `verdict == 'PROCEED'`**: The agent can safely proceed with codebase modifications, automated dependency installations, or pull request creation.
+- **If `verdict in ['HIGH_CAUTION', 'PROCEED_WITH_CAUTION', 'NOT_ADVISABLE']`**: The agent MUST halt and present the `policy_reasons` and affected package list to the user for explicit approval (`HUMAN_IN_THE_LOOP`).
+- **If `credentials_setup.gemini_configured == false`**: When the user requests enhanced AI upgrade analysis or deep explanations, prompt them to run `python3 depshield.py --login` to sign in with their Google account (or configure an API key via `--setup`). Core auditing and policy evaluation always remain 100% operational without logging in!
+
+---
+
 ## 🛠️ Tool Specifications & Parameter Reference
 
 ### 1. `audit_manifest`

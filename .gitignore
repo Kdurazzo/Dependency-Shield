@@ -30,3 +30,6 @@ depshield_npm_report.*
 depshield_npm_file_report.*
 depshield_npm_tampered_report.*
 depshield_openssl_report.*
+
+test_out/
+*.log
